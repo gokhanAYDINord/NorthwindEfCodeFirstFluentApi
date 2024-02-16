@@ -1,0 +1,59 @@
+version: '1.2'
+services:
+    rabbitmq:
+        restart: "no"
+        build: docker/rabbitmq
+        ports:
+            - 5672:5672/tcp
+            - 15672:15672/tcp
+    postresql:
+        restart: "no"
+        image: postgres         
+        environment:
+            - POSTGRES_PASSWORD=123
+            - POSTGRES_USER=ArcUser
+            - POSTGRES_DB=Arc
+        ports:
+            - 5432:5432/tcp
+    zookeeper:
+        restart: "no"
+        build: docker/zookeeper
+        ports:
+            - 2181:2181/tcp
+        environment:
+          ZOOKEEPER_CLIENT_PORT: 2181
+          ZOOKEEPER_TICK_TIME: 2000
+          ZOOKEEPER_DATADIR: /tmp/zookeeper
+          ZK_CLIENT_PORT: 2181
+          ZK_TICK_TIME: 2000
+          ZK_DATADIR: /tmp/zookeeper
+        networks:
+            - kafka-network
+    kafka:
+        restart: "no"
+        build: docker/server
+        ports:
+            - 9092:9092/tcp
+            - 29092:29092/tcp
+        links:
+          - zookeeper
+        environment:
+          KAFKA_BROKER_ID: 1
+          KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+          KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+          KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+          KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+          KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+          KAFKA_LOG_DIRS: /tmp/kafka-logs
+        networks:
+            - kafka-network
+    mongo:
+      restart: "always"
+      build: docker/mongo
+      ports:
+        - 27017:27017
+      volumes:
+        - ./docker/mongo/init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+networks:
+    kafka-network:
+        name: kafka_docker_network
